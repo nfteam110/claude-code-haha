@@ -135,7 +135,7 @@ describe('ActiveSession task polling', () => {
     expect(screen.getByTestId('chat-input')).toHaveAttribute('data-variant', 'default')
   })
 
-  it('does not duplicate the current goal as a page-level status panel', () => {
+  it('renders the current goal as a lightweight header strip without a page-level panel', () => {
     const sessionId = 'goal-visible-session'
 
     useSessionStore.setState({
@@ -200,6 +200,72 @@ describe('ActiveSession task polling', () => {
     render(<ActiveSession />)
 
     expect(screen.queryByTestId('active-goal-panel')).not.toBeInTheDocument()
+    expect(screen.getByTestId('active-goal-strip')).toBeInTheDocument()
+    expect(screen.getByTestId('active-goal-strip')).toHaveTextContent('ship the smoke test')
+    expect(screen.getByTestId('message-list')).toBeInTheDocument()
+  })
+
+  it('does not keep a completed goal pinned in the header', () => {
+    const sessionId = 'goal-completed-session'
+
+    useSessionStore.setState({
+      sessions: [{
+        id: sessionId,
+        title: 'Goal Completed Session',
+        createdAt: '2026-05-07T00:00:00.000Z',
+        modifiedAt: '2026-05-07T00:00:00.000Z',
+        messageCount: 3,
+        projectPath: '/workspace/project',
+        workDir: '/workspace/project',
+        workDirExists: true,
+      }],
+      activeSessionId: sessionId,
+      isLoading: false,
+      error: null,
+    })
+    useTabStore.setState({
+      tabs: [{ sessionId, title: 'Goal Completed Session', type: 'session', status: 'idle' }],
+      activeTabId: sessionId,
+    })
+    useChatStore.setState({
+      sessions: {
+        [sessionId]: {
+          messages: [{
+            id: 'goal-completed-event',
+            type: 'goal_event',
+            action: 'completed',
+            status: 'complete',
+            message: 'Goal marked complete.',
+            timestamp: 3,
+          }],
+          activeGoal: {
+            action: 'completed',
+            status: 'complete',
+            message: 'Goal marked complete.',
+            updatedAt: 3,
+          },
+          chatState: 'idle',
+          connectionState: 'connected',
+          streamingText: '',
+          streamingToolInput: '',
+          activeToolUseId: null,
+          activeToolName: null,
+          activeThinkingId: null,
+          pendingPermission: null,
+          pendingComputerUsePermission: null,
+          tokenUsage: { input_tokens: 0, output_tokens: 0 },
+          elapsedSeconds: 0,
+          statusVerb: '',
+          slashCommands: [],
+          agentTaskNotifications: {},
+          elapsedTimer: null,
+        },
+      },
+    })
+
+    render(<ActiveSession />)
+
+    expect(screen.queryByTestId('active-goal-strip')).not.toBeInTheDocument()
     expect(screen.getByTestId('message-list')).toBeInTheDocument()
   })
 
