@@ -1166,6 +1166,38 @@ describe('TabBar', () => {
     expect(useActivityPanelStore.getState().isOpen(tabId)).toBe(false)
   })
 
+  it('treats the skill center tab as a non-session toolbar target', async () => {
+    const { TabBar } = await import('./TabBar')
+    const { SKILL_CENTER_TAB_ID, useTabStore } = await import('../../stores/tabStore')
+    const { useChatStore } = await import('../../stores/chatStore')
+    const { useTerminalPanelStore } = await import('../../stores/terminalPanelStore')
+
+    useTabStore.setState({
+      tabs: [
+        { sessionId: SKILL_CENTER_TAB_ID, title: 'Skills', type: 'skill-center', status: 'idle' },
+      ],
+      activeTabId: SKILL_CENTER_TAB_ID,
+    })
+    useChatStore.setState({
+      sessions: {},
+      disconnectSession: vi.fn(),
+    } as Partial<ReturnType<typeof useChatStore.getState>>)
+
+    await act(async () => {
+      render(<TabBar />)
+    })
+
+    expect(screen.queryByTestId('open-project-menu')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show Workspace' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Terminal' }))
+
+    const terminalTabs = useTabStore.getState().tabs.filter((tab) => tab.type === 'terminal')
+    expect(terminalTabs).toHaveLength(1)
+    expect(useTabStore.getState().activeTabId).toBe(terminalTabs[0]?.sessionId)
+    expect(useTerminalPanelStore.getState().isPanelOpen(SKILL_CENTER_TAB_ID)).toBe(false)
+  })
+
   it('clears session panel state when closing a session tab', async () => {
     const { TabBar } = await import('./TabBar')
     const { useTabStore } = await import('../../stores/tabStore')

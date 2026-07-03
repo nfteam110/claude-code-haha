@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import {
   SCHEDULED_TAB_ID,
   SETTINGS_TAB_ID,
+  SKILL_CENTER_TAB_ID,
   SUBAGENT_TAB_PREFIX,
   TERMINAL_TAB_PREFIX,
   TRACE_LIST_TAB_ID,
@@ -51,6 +52,7 @@ function isSessionTabId(tabId: string | null) {
   if (!tabId) return false
   return tabId !== SETTINGS_TAB_ID &&
     tabId !== SCHEDULED_TAB_ID &&
+    tabId !== SKILL_CENTER_TAB_ID &&
     tabId !== TRACE_LIST_TAB_ID &&
     !tabId.startsWith(TERMINAL_TAB_PREFIX) &&
     !tabId.startsWith(TRACE_TAB_PREFIX) &&
