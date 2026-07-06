@@ -182,14 +182,16 @@ describe('BrowserSurface', () => {
     expect(bridge.message).toHaveBeenLastCalledWith({ v: 1, type: 'exit-picker' })
   })
 
-  it('renders bottom-right preview zoom controls that update the native preview zoom', async () => {
+  it('renders toolbar preview zoom controls that update the native preview zoom', async () => {
     useBrowserPanelStore.getState().open('s1', 'http://localhost:5173/')
     useBrowserPanelStore.getState().setReady('s1')
     render(<BrowserSurface sessionId="s1" />)
 
     const controls = screen.getByTestId('browser-zoom-controls')
+    const actions = screen.getByTestId('browser-toolbar-actions')
     expect(controls).toHaveTextContent('100%')
-    expect(screen.getByTestId('preview-host').compareDocumentPosition(controls) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(actions).toContainElement(controls)
+    expect(controls.compareDocumentPosition(screen.getByTestId('preview-host')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
     fireEvent.click(screen.getByLabelText('缩小预览'))
     expect(useBrowserPanelStore.getState().bySession['s1']!.zoom).toBe(0.9)
