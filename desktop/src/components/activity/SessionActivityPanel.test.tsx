@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { SessionActivityPanel } from './SessionActivityPanel'
@@ -160,7 +160,8 @@ describe('SessionActivityPanel', () => {
     expect(screen.getByLabelText('Task completed')).toBeInTheDocument()
     expect(screen.getByLabelText('Task in progress')).toBeInTheDocument()
     expect(screen.getByLabelText('Task pending')).toBeInTheDocument()
-    expect(screen.getByText('Active task').closest('button,div')).toHaveClass('py-3')
+    expect(screen.getByLabelText('Task in progress').querySelector('svg')).toHaveClass('motion-safe:animate-spin')
+    expect(screen.getByText('Active task').closest('button,div')).toHaveClass('py-2.5')
     expect(screen.queryByText('Completed')).not.toBeInTheDocument()
     expect(screen.queryByText('Pending')).not.toBeInTheDocument()
   })
@@ -290,6 +291,75 @@ describe('SessionActivityPanel', () => {
     expect(screen.queryByText('No blocking issue.')).not.toBeInTheDocument()
   })
 
+  it('animates running SubAgent rows with a compact reduced-motion-safe live marker', () => {
+    render(<SessionActivityPanel model={model()} open onClose={vi.fn()} onOpenSubagent={vi.fn()} />)
+
+    const row = screen.getByRole('button', { name: /open run kuhn.*running/i })
+    const mascot = within(row).getByTestId('agent-mascot')
+    const motionRing = within(row).getByTestId('agent-mascot-motion-ring')
+
+    expect(row).toHaveTextContent('Running')
+    expect(mascot).toHaveAttribute('aria-hidden', 'true')
+    expect(mascot).toHaveAttribute('data-agent-mascot-state', 'running')
+    expect(mascot).toHaveAttribute('data-agent-mascot-motion', 'active')
+    expect(mascot).toHaveAttribute('data-agent-mascot-tone', 'accent')
+    expect(mascot).toHaveAttribute('data-agent-mascot-variant')
+    expect(motionRing).toBeInTheDocument()
+    expect(motionRing).toHaveClass('motion-safe:animate-spin')
+    expect(motionRing).toHaveClass('motion-reduce:animate-none')
+    expect(row.querySelector('.animate-pulse-dot')).not.toBeInTheDocument()
+    expect(row.querySelector('.animate-spin')).not.toBeInTheDocument()
+    expect(row.querySelector('.animate-ping')).not.toBeInTheDocument()
+  })
+
+  it('keeps Agent mascot variants stable for the same SubAgent seed', () => {
+    const repeatedAgentModel = model({
+      sections: {
+        ...model().sections,
+        subagents: {
+          id: 'subagents',
+          title: 'SubAgents',
+          emptyLabel: 'No SubAgents',
+          rows: [
+            {
+              id: 'agent-a-first-render',
+              section: 'subagents',
+              label: 'Reviewer A',
+              status: 'running',
+              toolUseId: 'stable-agent-tool',
+              openable: true,
+            },
+            {
+              id: 'agent-a-second-render',
+              section: 'subagents',
+              label: 'Reviewer A again',
+              status: 'completed',
+              toolUseId: 'stable-agent-tool',
+              openable: true,
+            },
+          ],
+        },
+      },
+    })
+
+    render(
+      <SessionActivityPanel
+        model={repeatedAgentModel}
+        open
+        onClose={vi.fn()}
+        onOpenSubagent={vi.fn()}
+      />,
+    )
+
+    const mascots = screen.getAllByTestId('agent-mascot')
+
+    expect(mascots).toHaveLength(2)
+    expect(mascots[0]).toHaveAttribute(
+      'data-agent-mascot-variant',
+      mascots[1]?.getAttribute('data-agent-mascot-variant') ?? '',
+    )
+  })
+
   it('opens a compact team member row', () => {
     const onOpenMember = vi.fn()
     const member = {
@@ -392,9 +462,9 @@ describe('SessionActivityPanel', () => {
 
     expect(screen.getByTestId('session-activity-panel')).toHaveAttribute('data-placement', 'rail')
     expect(screen.getByTestId('session-activity-panel')).toHaveClass('my-4')
-    expect(screen.getByTestId('session-activity-panel')).toHaveClass('mr-4')
-    expect(screen.getByTestId('session-activity-panel')).toHaveClass('w-[360px]')
-    expect(screen.getByTestId('session-activity-panel')).toHaveClass('rounded-[24px]')
+    expect(screen.getByTestId('session-activity-panel')).toHaveClass('mr-3')
+    expect(screen.getByTestId('session-activity-panel')).toHaveClass('w-[336px]')
+    expect(screen.getByTestId('session-activity-panel')).toHaveClass('rounded-[22px]')
     expect(screen.getByTestId('session-activity-panel')).toHaveClass('self-start')
     expect(screen.getByTestId('session-activity-panel')).toHaveClass('max-h-[min(620px,calc(100vh-72px))]')
     expect(screen.getByTestId('session-activity-panel')).not.toHaveClass('h-[calc(100%-24px)]')

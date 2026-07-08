@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Bot, Check, ChevronRight, Circle, FileText, LoaderCircle, Terminal, Users, X } from 'lucide-react'
+import { Check, ChevronRight, Circle, FileText, LoaderCircle, Terminal, Users, X } from 'lucide-react'
+import { AgentMascot } from './AgentMascot'
 import { getVisibleActivitySections, type ActivityRow, type ActivitySectionId, type SessionActivityModel } from './sessionActivityModel'
 import { useTranslation } from '../../i18n'
 import type { BackgroundAgentTask } from '../../types/chat'
@@ -164,7 +165,7 @@ function TaskStatusMarker({ status, t }: { status: ActivityRow['status']; t: Tra
         aria-label={t('session.activity.task.inProgress')}
         className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-[var(--color-accent)] bg-[var(--color-surface)] text-[var(--color-accent)]"
       >
-        <LoaderCircle size={13} strokeWidth={2.4} aria-hidden="true" className="animate-spin" />
+        <LoaderCircle size={13} strokeWidth={2.4} aria-hidden="true" className="motion-safe:animate-spin motion-reduce:animate-none" />
       </span>
     )
   }
@@ -184,7 +185,7 @@ function getRowIcon(row: ActivityRow) {
     case 'backgroundTasks':
       return Terminal
     case 'subagents':
-      return Bot
+      return Users
     case 'sources':
     case 'output':
       return FileText
@@ -204,6 +205,44 @@ function getStatusTone(status: ActivityRow['status']) {
     return 'bg-[var(--color-error)]'
   }
   return 'bg-[var(--color-text-tertiary)]'
+}
+
+function ActivityRowIcon({ row, sessionId }: { row: ActivityRow; sessionId: string }) {
+  if (row.section === 'subagents') {
+    return <AgentMascot seed={`${sessionId}:${row.toolUseId ?? row.taskId ?? row.id}`} status={row.status} />
+  }
+
+  const Icon = getRowIcon(row)
+
+  return (
+    <span className="inline-flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-lg text-[var(--color-text-tertiary)]">
+      <Icon size={15} strokeWidth={2} aria-hidden="true" />
+    </span>
+  )
+}
+
+function ActivityStatusIndicator({
+  status,
+  label,
+  animated = true,
+}: {
+  status: ActivityRow['status']
+  label: string
+  animated?: boolean
+}) {
+  const isRunning = animated && (status === 'running' || status === 'in_progress')
+
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 text-[10px] font-medium text-[var(--color-text-tertiary)]">
+      <span className="relative inline-flex h-1.5 w-1.5" aria-hidden="true">
+        {isRunning ? (
+          <span className={`absolute inline-flex h-full w-full rounded-full opacity-35 motion-safe:animate-ping motion-reduce:animate-none ${getStatusTone(status)}`} />
+        ) : null}
+        <span className={`relative inline-flex h-1.5 w-1.5 rounded-full ${getStatusTone(status)}`} />
+      </span>
+      {label}
+    </span>
+  )
 }
 
 function ActivityRowView({
@@ -242,23 +281,18 @@ function ActivityRowView({
       {isTask ? (
         <TaskStatusMarker status={row.status} t={t} />
       ) : (
-        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-[var(--color-text-tertiary)]">
-          {(() => {
-            const Icon = getRowIcon(row)
-            return <Icon size={17} strokeWidth={2} aria-hidden="true" />
-          })()}
-        </span>
+        <ActivityRowIcon row={row} sessionId={sessionId} />
       )}
       <span className="min-w-0 flex-1 truncate text-left">
         <span
-          className={`block truncate text-[13px] font-semibold leading-5 ${isTask && row.status === 'completed' ? 'text-[var(--color-text-tertiary)] line-through decoration-[var(--color-text-tertiary)]/60' : 'text-[var(--color-text-primary)]'}`}
+          className={`block truncate text-[12px] font-semibold leading-4 ${isTask && row.status === 'completed' ? 'text-[var(--color-text-tertiary)] line-through decoration-[var(--color-text-tertiary)]/60' : 'text-[var(--color-text-primary)]'}`}
           title={label}
         >
           {label}
         </span>
         {detail ? (
           <span
-            className="block truncate text-[11px] leading-4 text-[var(--color-text-tertiary)]"
+            className="block truncate text-[10px] leading-4 text-[var(--color-text-tertiary)]"
             title={detail}
           >
             {detail}
@@ -266,18 +300,19 @@ function ActivityRowView({
         ) : null}
       </span>
       {isTask ? null : (
-        <span className="inline-flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-[var(--color-text-tertiary)]">
-          <span className={`h-1.5 w-1.5 rounded-full ${getStatusTone(row.status)}`} aria-hidden="true" />
-          {getActivityStatusLabel(row.status, t)}
-        </span>
+        <ActivityStatusIndicator
+          status={row.status}
+          label={getActivityStatusLabel(row.status, t)}
+          animated={row.section !== 'subagents'}
+        />
       )}
       {!isTask && row.openable ? (
-        <ChevronRight size={14} strokeWidth={2.2} className="shrink-0 text-[var(--color-text-tertiary)]" aria-hidden="true" />
+        <ChevronRight size={13} strokeWidth={2.2} className="shrink-0 text-[var(--color-text-tertiary)]" aria-hidden="true" />
       ) : null}
     </>
   )
   const interactiveRowClassName =
-    'flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--color-surface-hover)] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]'
+    'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2.5 text-left transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--color-surface-hover)] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]'
 
   if (row.section === 'team' && row.member && onOpenMember) {
     return (
@@ -293,10 +328,12 @@ function ActivityRowView({
   }
 
   if (row.section === 'subagents' && row.openable && row.toolUseId) {
+    const statusLabel = getActivityStatusLabel(row.status, t)
+
     return (
       <button
         type="button"
-        aria-label={t('session.activity.openRun', { name: row.label })}
+        aria-label={`${t('session.activity.openRun', { name: row.label })} · ${statusLabel}`}
         onClick={() => onOpenSubagent({ sessionId, toolUseId: row.toolUseId!, title: row.label })}
         className={interactiveRowClassName}
       >
@@ -320,7 +357,7 @@ function ActivityRowView({
   }
 
   return (
-    <div className="flex items-center gap-3 rounded-xl px-3 py-3">
+    <div className="flex items-center gap-2.5 rounded-lg px-2.5 py-2.5">
       {content}
     </div>
   )
@@ -356,17 +393,17 @@ function BackgroundTaskDetail({ row }: { row: ActivityRow }) {
   if (details.length === 0) return null
 
   return (
-    <div className="mx-3 mb-1.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.54)]">
-      <div className="mb-2 text-[11px] font-semibold text-[var(--color-text-tertiary)]">
+    <div className="mx-2.5 mb-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface-container-low)] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.54)]">
+      <div className="mb-1.5 text-[10px] font-semibold text-[var(--color-text-tertiary)]">
         {t('session.activity.details.title')}
       </div>
-      <dl className="space-y-2">
+      <dl className="space-y-1.5">
         {details.map((detail) => (
           <div key={detail.label} className="min-w-0">
             <dt className="text-[10px] font-semibold text-[var(--color-text-tertiary)]">
               {detail.label}
             </dt>
-            <dd className="max-h-28 overflow-auto whitespace-pre-wrap break-words text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+            <dd className="max-h-28 overflow-auto whitespace-pre-wrap break-words text-[10px] leading-relaxed text-[var(--color-text-secondary)]">
               {detail.value}
             </dd>
           </div>
@@ -441,8 +478,8 @@ export function SessionActivityPanel({
 
   if (!open) return null
   const className = placement === 'rail'
-    ? 'my-4 ml-3 mr-4 flex max-h-[min(620px,calc(100vh-72px))] w-[360px] shrink-0 self-start flex-col overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_26px_80px_-48px_rgba(15,23,42,0.58),0_12px_30px_-22px_rgba(15,23,42,0.34),inset_0_1px_0_rgba(255,255,255,0.82)]'
-    : 'absolute right-4 top-4 z-40 flex max-h-[calc(100%-80px)] w-[min(360px,calc(100%-32px))] flex-col overflow-hidden rounded-[24px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_26px_80px_-48px_rgba(15,23,42,0.58),0_12px_30px_-22px_rgba(15,23,42,0.34),inset_0_1px_0_rgba(255,255,255,0.82)]'
+    ? 'my-4 ml-3 mr-3 flex max-h-[min(620px,calc(100vh-72px))] w-[336px] shrink-0 self-start flex-col overflow-hidden rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_72px_-48px_rgba(15,23,42,0.54),0_10px_26px_-22px_rgba(15,23,42,0.32),inset_0_1px_0_rgba(255,255,255,0.82)]'
+    : 'absolute right-4 top-4 z-40 flex max-h-[calc(100%-80px)] w-[min(336px,calc(100%-32px))] flex-col overflow-hidden rounded-[22px] border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[0_24px_72px_-48px_rgba(15,23,42,0.54),0_10px_26px_-22px_rgba(15,23,42,0.32),inset_0_1px_0_rgba(255,255,255,0.82)]'
 
   return (
     <div
@@ -453,21 +490,21 @@ export function SessionActivityPanel({
       data-placement={placement}
       className={className}
     >
-      <div className="flex items-center justify-between px-5 pb-2 pt-4">
-        <h2 className="text-[13px] font-semibold text-[var(--color-text-secondary)]">{t('session.activity.title')}</h2>
+      <div className="flex items-center justify-between px-4 pb-1.5 pt-3.5">
+        <h2 className="text-[12px] font-semibold text-[var(--color-text-secondary)]">{t('session.activity.title')}</h2>
         <button
           type="button"
           aria-label={t('session.activity.close')}
           onClick={onClose}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-xl text-[var(--color-text-tertiary)] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-text-tertiary)] transition-[background-color,color,transform] duration-150 ease-out hover:bg-[var(--color-surface-hover)] hover:text-[var(--color-text-primary)] active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-border-focus)]"
         >
-          <X size={15} strokeWidth={2.2} aria-hidden="true" />
+          <X size={14} strokeWidth={2.2} aria-hidden="true" />
         </button>
       </div>
 
       <div
         data-testid="session-activity-scroll"
-        className={`min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 pb-5 pt-1 ${ACTIVITY_SCROLLBAR_CLASS}`}
+        className={`min-h-0 flex-1 space-y-3 overflow-y-auto overscroll-contain px-4 pb-4 pt-0.5 ${ACTIVITY_SCROLLBAR_CLASS}`}
       >
         {visibleSections.map((section, index) => {
           const sectionTitle = getSectionTitle(section.id, t)
@@ -476,15 +513,15 @@ export function SessionActivityPanel({
             <section
               key={section.id}
               aria-label={sectionTitle}
-              className={index > 0 ? 'border-t border-[var(--color-border)] pt-4' : undefined}
+              className={index > 0 ? 'border-t border-[var(--color-border)] pt-3' : undefined}
             >
-              <div className="mb-2 flex items-center justify-between gap-2 px-1">
-                <div className="flex min-w-0 items-center gap-2">
-                  <h3 className="text-[12px] font-semibold text-[var(--color-text-tertiary)]">
+              <div className="mb-1.5 flex items-center justify-between gap-2 px-0.5">
+                <div className="flex min-w-0 items-center gap-1.5">
+                  <h3 className="text-[11px] font-semibold text-[var(--color-text-tertiary)]">
                     {sectionTitle}
                   </h3>
                   {section.rows.length > 0 ? (
-                    <span className="rounded-full bg-[var(--color-surface-container)] px-2 py-0.5 text-[10px] leading-none text-[var(--color-text-tertiary)]">
+                    <span className="rounded-full bg-[var(--color-surface-container)] px-1.5 py-0.5 text-[9px] leading-none text-[var(--color-text-tertiary)]">
                       {section.rows.length}
                     </span>
                   ) : null}

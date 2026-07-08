@@ -1,4 +1,4 @@
-import { memo, useEffect, useState } from 'react'
+import { memo, useCallback, useState } from 'react'
 import { BookMarked, ChevronDown, ChevronRight, Settings } from 'lucide-react'
 import { ToolCallBlock } from './ToolCallBlock'
 import { MarkdownRenderer } from '../markdown/MarkdownRenderer'
@@ -27,6 +27,16 @@ type MemoryToolActivity = {
   files: MemoryToolFile[]
 }
 
+function useExpandableCardState() {
+  const [expanded, setExpanded] = useState(false)
+
+  const toggleExpanded = useCallback(() => {
+    setExpanded((value) => !value)
+  }, [])
+
+  return { expanded, toggleExpanded }
+}
+
 type Props = {
   sessionId?: string | null
   toolCalls: ToolCall[]
@@ -34,7 +44,7 @@ type Props = {
   childToolCallsByParent: Map<string, ToolCall[]>
   agentTaskNotifications: Record<string, AgentTaskNotification>
   showOpenRun?: boolean
-  /** When true, the last tool is still executing — show expanded */
+  /** When true, the last tool is still executing. */
   isStreaming?: boolean
 }
 
@@ -124,16 +134,16 @@ export const ToolCallGroup = memo(function ToolCallGroup({
   if (memoryActivity) {
     const memoryToolCalls = toolCalls.filter(isMemoryToolCall)
     const regularToolCalls = toolCalls.filter((toolCall) => !isMemoryToolCall(toolCall))
-    if (regularToolCalls.length > 0) {
-      return (
-        <div className="mb-2 space-y-2">
-          <MemoryToolActivityGroup
-            activity={memoryActivity}
-            toolCalls={memoryToolCalls}
-            resultMap={resultMap}
-            childToolCallsByParent={childToolCallsByParent}
-            isStreaming={isStreaming}
-          />
+    return (
+      <div className={regularToolCalls.length > 0 ? 'mb-2 space-y-2' : ''}>
+        <MemoryToolActivityGroup
+          activity={memoryActivity}
+          toolCalls={memoryToolCalls}
+          resultMap={resultMap}
+          childToolCallsByParent={childToolCallsByParent}
+          isStreaming={isStreaming}
+        />
+        {regularToolCalls.length > 0 ? (
           <ToolCallGroupContent
             sessionId={sessionId}
             toolCalls={regularToolCalls}
@@ -143,17 +153,8 @@ export const ToolCallGroup = memo(function ToolCallGroup({
             showOpenRun={showOpenRun}
             isStreaming={isStreaming}
           />
-        </div>
-      )
-    }
-    return (
-      <MemoryToolActivityGroup
-        activity={memoryActivity}
-        toolCalls={memoryToolCalls}
-        resultMap={resultMap}
-        childToolCallsByParent={childToolCallsByParent}
-        isStreaming={isStreaming}
-      />
+        ) : null}
+      </div>
     )
   }
 
@@ -231,7 +232,7 @@ function MemoryToolActivityGroup({
   childToolCallsByParent: Map<string, ToolCall[]>
   isStreaming?: boolean
 }) {
-  const [expanded, setExpanded] = useState(activity.action === 'saved')
+  const { expanded, toggleExpanded } = useExpandableCardState()
   const [detailsExpanded, setDetailsExpanded] = useState(false)
   const t = useTranslation()
   const titleKey = activity.action === 'saved'
@@ -239,10 +240,6 @@ function MemoryToolActivityGroup({
     : 'chat.memoryReferencedTitle'
   const visibleFiles = activity.files.slice(0, 4)
   const hiddenCount = Math.max(0, activity.files.length - visibleFiles.length)
-
-  useEffect(() => {
-    if (isStreaming) setExpanded(true)
-  }, [isStreaming])
 
   return (
     <div className="mb-2">
@@ -252,7 +249,7 @@ function MemoryToolActivityGroup({
       >
         <button
           type="button"
-          onClick={() => setExpanded((value) => !value)}
+          onClick={toggleExpanded}
           className="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-[var(--color-surface-hover)]/50"
         >
           {expanded ? (
@@ -347,7 +344,7 @@ function AgentToolGroup({
   showOpenRun = true,
   isStreaming,
 }: Props) {
-  const [expanded, setExpanded] = useState(true)
+  const { expanded, toggleExpanded } = useExpandableCardState()
   const t = useTranslation()
   const statuses = toolCalls.map((toolCall) =>
     getAgentStatus({
@@ -364,17 +361,11 @@ function AgentToolGroup({
   const allComplete = statuses.every((status) => status === 'done')
   const anyStopped = statuses.some((status) => status === 'stopped')
 
-  useEffect(() => {
-    if (isStreaming) {
-      setExpanded(true)
-    }
-  }, [isStreaming])
-
   return (
     <div className="mb-2">
       <button
         type="button"
-        onClick={() => setExpanded((value) => !value)}
+        onClick={toggleExpanded}
         className="flex w-full items-center gap-2 rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-container-low)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-container-high)]"
       >
         <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)]">
@@ -432,25 +423,18 @@ function AgentToolGroup({
 
 /** Separated so the useState hook is never called conditionally. */
 function ToolCallGroupMulti({ toolCalls, resultMap, childToolCallsByParent, isStreaming }: Props) {
-  const [expanded, setExpanded] = useState(false)
+  const { expanded, toggleExpanded } = useExpandableCardState()
   const t = useTranslation()
   const summary = generateSummary(toolCalls, t)
   const errorPresent = groupHasErrors(toolCalls, resultMap, childToolCallsByParent)
   const hasUnresolvedTools = hasUnresolvedToolCalls(toolCalls, resultMap, childToolCallsByParent)
   const isRunning = !!isStreaming || hasUnresolvedTools
-  const hasNestedToolCalls = toolCalls.some((tc) => (childToolCallsByParent.get(tc.toolUseId)?.length ?? 0) > 0)
-
-  useEffect(() => {
-    if (isRunning || hasNestedToolCalls) {
-      setExpanded(true)
-    }
-  }, [hasNestedToolCalls, isRunning])
 
   return (
     <div className="mb-2">
       <button
         type="button"
-        onClick={() => setExpanded((v) => !v)}
+        onClick={toggleExpanded}
         className="flex w-full items-center gap-2 rounded-lg border border-[var(--color-border)]/40 bg-[var(--color-surface-container-low)] px-3 py-1.5 text-left transition-colors hover:bg-[var(--color-surface-container-high)]"
       >
         <span className="material-symbols-outlined text-[14px] text-[var(--color-outline)]">

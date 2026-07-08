@@ -928,7 +928,7 @@ describe('ActiveSession task polling', () => {
 
     render(<ActiveSession />)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Open run Review workspace seams' }))
+    fireEvent.click(screen.getByRole('button', { name: /Open run Review workspace seams.*Completed/ }))
 
     const tab = useTabStore.getState().tabs.find((candidate) => candidate.sessionId === '__subagent__activity-subagent-open-session__agent-tool-1')
     expect(tab).toMatchObject({
